@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from utils.logger import get_logger
 from utils.reddit import *
+import utils.list_submissions as ls
 
 
 def set_logger_from_sysargs(path: Path | str = "./log.txt") -> logging.Logger:
@@ -28,10 +29,7 @@ def get_env_vars(*required: str) -> dict[str, str]:
     return resp
 
 
-SubredditData = dict[str, RedditPost]
-
-
-def load_data(path: str = "data.json") -> dict[str, SubredditData]:
+def load_data(path: str = "data.json") -> Data:
     try:
         with open(path, "r", encoding="utf-8") as file:
             return json.load(file)
@@ -43,57 +41,31 @@ def load_data(path: str = "data.json") -> dict[str, SubredditData]:
         return resp
 
 
-def save_data(data: dict[str, SubredditData], path: str = "data.json") -> None:
+def save_data(data: Data, path: str = "data.json") -> None:
     with open(path, "w+", encoding="utf-8") as file:
         json.dump(data, file)
     logging.info(f"Saved data to {path}!")
 
 
-DEFAULT_SUBS = "+".join(
-    [
-        "ClassicMetal",
-        "DankAlbums",
-        "DankBlackMetal",
-        "DankDoomMetal",
-        "DankPowerMetal",
-        "DankHipHop",
-        "DankPunk",
-        "DankBrutalDeathMetal",
-        "DankIDM",
-    ]
-)
+def retrieve(data: Data) -> None:
+    reddit = Reddit(**get_env_vars("client_id", "client_secret", "user_agent"))
+    data = parse_submissions(reddit, data)
+    save_data(data)
 
 
-def parse_submissions(
-    reddit: Reddit, data: dict[str, SubredditData], default_sub: str = DEFAULT_SUBS
-) -> dict[str, SubredditData]:
-    source_sr = reddit.subreddit(input("Subreddit? ").strip() or default_sub)
-    total_changed = 0
-    for submission in get_submissions(source_sr):
-        sr = submission.pop("subreddit")
-        id = submission.pop("id")
-
-        if sr not in data:
-            logging.debug(f"Creating object for subreddit {sr} for the first time!")
-            data[sr] = {}
-        elif id in data[sr]:
-            logging.debug(f"Submission with id '{id}' already logged; skipping")
-            continue
-        else:
-            logging.info(f"Dumping submission with id {id} from subreddit {sr}")
-            data[sr][id] = submission
-        total_changed += 1
-    logging.info(f"Total number of new submissions: {total_changed}")
-    return data
+def _list(data: Data) -> None:
+    subreddits = input("Subreddits to dump? ").strip().split("+")
+    path = input("Filepath? (optional) ").strip() or "dump.txt"
+    ls.output(data, subreddits, path)
 
 
 def main():
     set_logger_from_sysargs()
 
     data = load_data()
-    reddit = Reddit(**get_env_vars("client_id", "client_secret", "user_agent"))
-    data = parse_submissions(reddit, data)
-    save_data(data)
+    do_retrieval = input("[0] Retrieve or [1] List? ") != "1"
+
+    retrieve(data) if do_retrieval else _list(data)
 
 
 if __name__ == "__main__":

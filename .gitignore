@@ -4,6 +4,7 @@
 # Data dumps
 log.txt
 data.json
+dump.txt
 
 # General configuration
 .vscode/
