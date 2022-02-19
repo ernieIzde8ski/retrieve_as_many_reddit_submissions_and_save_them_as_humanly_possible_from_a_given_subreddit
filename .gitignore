@@ -1,0 +1,13 @@
+# Login information
+.env
+
+# Data dumps
+log.txt
+data.json
+
+# General configuration
+.vscode/
+
+# Python
+venv/
+__pycache__/
